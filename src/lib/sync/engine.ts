@@ -1,5 +1,5 @@
 import { db } from "@/db/client";
-import { NormMatch, NormStanding, NormCompetition, NormSeason, type ProviderAdapter } from "../providers/types";
+import { NormMatch, NormScorer, NormStanding, NormCompetition, NormSeason, type ProviderAdapter } from "../providers/types";
 import { QuotaExceeded } from "../providers/http";
 import { upsertMapped } from "./store";
 
@@ -69,6 +69,24 @@ export async function syncCompetition(p: ProviderAdapter, code: string, range?: 
     } catch (e) {
       if (e instanceof QuotaExceeded) throw e;
       standingsFailed = true;
+    }
+
+    try {
+      if (p.fetchScorers) {
+        for (const raw of await p.fetchScorers(code)) {
+          const sc = NormScorer.safeParse(raw);
+          if (!sc.success) { invalid++; continue; }
+          const pid = await upsertMapped(c, p.name, "player", sc.data.player.pid, { name: sc.data.player.name, position: sc.data.player.position, nationality: sc.data.player.nationality, birth_date: sc.data.player.birthDate, team_id: await teamId(sc.data.team), updated_at: nowIso() });
+          await c.execute({
+            sql: `INSERT INTO scorers(season_id, player_id, team_id, goals, assists, penalties, played) VALUES (?,?,?,?,?,?,?)
+                  ON CONFLICT(season_id, player_id) DO UPDATE SET team_id=excluded.team_id, goals=excluded.goals, assists=excluded.assists, penalties=excluded.penalties, played=excluded.played`,
+            args: [seasonId, pid, await teamId(sc.data.team), sc.data.goals, sc.data.assists, sc.data.penalties, sc.data.played],
+          });
+          upserted++;
+        }
+      }
+    } catch (e) {
+      if (e instanceof QuotaExceeded) throw e; // scorers are optional; other failures keep the old table
     }
 
     const status = invalid > 0 || standingsFailed ? "partial" : "ok";

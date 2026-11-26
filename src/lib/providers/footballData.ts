@@ -61,6 +61,13 @@ export function footballDataAdapter(opts: { apiKey: string; dailyLimit?: number;
         matches: (body.matches ?? []).map(normalizeMatch),
       };
     },
+    async fetchScorers(code) {
+      const body = await get(`/competitions/${code}/scorers?limit=15`, 3600);
+      return (body.scorers ?? []).map((r: any) => ({
+        player: { pid: String(r.player?.id), name: r.player?.name ?? "", position: r.player?.position ?? null, nationality: r.player?.nationality ?? null, birthDate: r.player?.dateOfBirth ?? null },
+        team: team(r.team ?? { id: 0 }), goals: r.goals, assists: n(r.assists), penalties: n(r.penalties), played: n(r.playedMatches),
+      }));
+    },
     async fetchMatchDetail(pid) {
       const m = await get(`/matches/${pid}`, 30);
       const events: unknown[] = [];

@@ -48,6 +48,7 @@ export interface ProviderAdapter {
   fetchStandings(code: string): Promise<unknown[]>;
   fetchMatchDetail?(pid: string): Promise<unknown>;
   fetchTeam?(pid: string): Promise<unknown>;
+  fetchScorers?(code: string): Promise<unknown[]>;
 }
 
 export const NormEvent = z.object({
@@ -61,4 +62,10 @@ export const NormPlayer = z.object({
 });
 export const NormTeamDetail = z.object({
   founded: z.number().int().nullable(), venue: z.string().nullable(), coach: z.string().nullable(), squad: z.array(z.unknown()),
+});
+
+export const NormScorer = z.object({
+  player: z.object({ pid: z.string(), name: z.string().min(1), position: z.string().nullable(), nationality: z.string().nullable(), birthDate: z.string().nullable() }),
+  team: NormTeam, goals: z.number().int().nonnegative(),
+  assists: z.number().int().nullable(), penalties: z.number().int().nullable(), played: z.number().int().nullable(),
 });

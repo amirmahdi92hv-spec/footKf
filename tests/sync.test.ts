@@ -84,3 +84,12 @@ describe("sync engine", () => {
     expect((await syncCompetition(fake([match("1")]), "X")).status).toBe("skipped");
   });
 });
+
+describe("scorers", () => {
+  it("stores scorers idempotently", async () => {
+    const p = { ...fake([match("1")]), async fetchScorers() { return [{ player: { pid: "7", name: "P One", position: null, nationality: null, birthDate: null }, team: t(1, "A"), goals: 5, assists: null, penalties: null, played: 3 }, { bad: true }]; } };
+    await syncCompetition(p, "X"); await syncCompetition(p, "X");
+    expect(await count("scorers")).toBe(1);
+    expect(Number((await c.execute("SELECT goals FROM scorers")).rows[0].goals)).toBe(5);
+  });
+});

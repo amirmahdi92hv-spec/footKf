@@ -21,3 +21,7 @@ export function dayRangeUtc(ymd: string) {
 }
 export const todayYmd = () => new Date(Date.now() + 3.5 * 36e5).toISOString().slice(0, 10);
 export const shiftYmd = (ymd: string, d: number) => new Date(new Date(`${ymd}T12:00:00Z`).getTime() + d * 864e5).toISOString().slice(0, 10);
+
+/** Persian names for well-known competitions (by provider code); falls back to the provider name. */
+const COMP_FA: Record<string, string> = { PL: "لیگ برتر انگلیس", PD: "لالیگا", BL1: "بوندسلیگا", SA: "سری آ", FL1: "لیگ ۱ فرانسه", CL: "لیگ قهرمانان اروپا", DED: "اردیویزی هلند", PPL: "لیگ پرتغال", ELC: "چمپیونشیپ انگلیس", BSA: "سری آ برزیل", WC: "جام جهانی", EC: "یورو" };
+export const compName = (code: string | null | undefined, fallback: string) => (code && COMP_FA[code]) || fallback;
