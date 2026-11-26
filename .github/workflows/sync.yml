@@ -1,0 +1,12 @@
+name: sync
+on:
+  schedule: [{ cron: "*/15 * * * *" }]   # GitHub may delay or skip scheduled runs; not a real-time guarantee
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl --fail --max-time 60 -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SITE_URL }}/api/cron/sync?codes=PL,PD"
