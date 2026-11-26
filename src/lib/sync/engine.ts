@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { NormMatch, NormScorer, NormStanding, NormCompetition, NormSeason, type ProviderAdapter } from "../providers/types";
 import { QuotaExceeded } from "../providers/http";
-import { upsertMapped } from "./store";
+import { upsertMapped, loadCtx } from "./store";
 
 const nowIso = () => new Date().toISOString();
 
@@ -24,6 +24,8 @@ export async function syncCompetition(p: ProviderAdapter, code: string, range?: 
   const c = db();
   const jobName = `${p.name}:${code}`;
   if (!(await acquireLock(jobName, 120))) return { status: "skipped", upserted: 0, skippedInvalid: 0, error: "job already running" };
+  await c.execute({ sql: "UPDATE sync_jobs SET status='error', finished_at=?, error='interrupted (stale running job)' WHERE status='running' AND started_at < ?", args: [nowIso(), new Date(Date.now() - 10 * 60 * 1000).toISOString()] });
+  const ctx = await loadCtx(c, p.name);
   const job = await c.execute({ sql: "INSERT INTO sync_jobs(provider, job, status, started_at) VALUES (?,?,'running',?)", args: [p.name, jobName, nowIso()] });
   const jobId = Number(job.lastInsertRowid);
   let upserted = 0, invalid = 0;
@@ -31,11 +33,16 @@ export async function syncCompetition(p: ProviderAdapter, code: string, range?: 
     const raw = await p.fetchMatches(code, range ?? {});
     const comp = NormCompetition.parse(raw.competition);
     const season = NormSeason.parse(raw.season);
-    const compId = await upsertMapped(c, p.name, "competition", comp.pid, { code: comp.code, name: comp.name, country: comp.country, emblem_url: comp.emblemUrl, type: comp.type });
-    const seasonId = await upsertMapped(c, p.name, "season", season.pid, { competition_id: compId, start_date: season.startDate, end_date: season.endDate, current_matchday: season.currentMatchday, is_current: 1 });
+    const compId = await upsertMapped(c, p.name, "competition", comp.pid, { code: comp.code, name: comp.name, country: comp.country, emblem_url: comp.emblemUrl, type: comp.type }, ctx);
+    const seasonId = await upsertMapped(c, p.name, "season", season.pid, { competition_id: compId, start_date: season.startDate, end_date: season.endDate, current_matchday: season.currentMatchday, is_current: 1 }, ctx);
 
-    const teamId = async (t: { pid: string; name: string; shortName: string | null; tla: string | null; crestUrl: string | null }) =>
-      upsertMapped(c, p.name, "team", t.pid, { name: t.name, short_name: t.shortName, tla: t.tla, crest_url: t.crestUrl, updated_at: nowIso() });
+    const teamMemo = new Map<string, Promise<number>>(); // each team is written once per run
+    const teamId = (t: { pid: string; name: string; shortName: string | null; tla: string | null; crestUrl: string | null }) => {
+      if (!teamMemo.has(t.pid)) teamMemo.set(t.pid, writeTeam(t));
+      return teamMemo.get(t.pid)!;
+    };
+    const writeTeam = (t: { pid: string; name: string; shortName: string | null; tla: string | null; crestUrl: string | null }) =>
+      upsertMapped(c, p.name, "team", t.pid, { name: t.name, short_name: t.shortName, tla: t.tla, crest_url: t.crestUrl, updated_at: nowIso() }, ctx);
 
     for (const rawMatch of raw.matches) {
       const parsed = NormMatch.safeParse(rawMatch);
@@ -46,7 +53,7 @@ export async function syncCompetition(p: ProviderAdapter, code: string, range?: 
         season_id: seasonId, competition_id: compId, home_team_id: h, away_team_id: a, kickoff_utc: m.kickoffUtc,
         status: m.status, matchday: m.matchday, stage: m.stage, home_score: m.homeScore, away_score: m.awayScore,
         home_ht: m.homeHt, away_ht: m.awayHt, updated_at: nowIso(), provider_updated_at: m.providerUpdatedAt,
-      });
+      }, ctx);
       upserted++;
     }
 
@@ -76,7 +83,7 @@ export async function syncCompetition(p: ProviderAdapter, code: string, range?: 
         for (const raw of await p.fetchScorers(code)) {
           const sc = NormScorer.safeParse(raw);
           if (!sc.success) { invalid++; continue; }
-          const pid = await upsertMapped(c, p.name, "player", sc.data.player.pid, { name: sc.data.player.name, position: sc.data.player.position, nationality: sc.data.player.nationality, birth_date: sc.data.player.birthDate, team_id: await teamId(sc.data.team), updated_at: nowIso() });
+          const pid = await upsertMapped(c, p.name, "player", sc.data.player.pid, { name: sc.data.player.name, position: sc.data.player.position, nationality: sc.data.player.nationality, birth_date: sc.data.player.birthDate, team_id: await teamId(sc.data.team), updated_at: nowIso() }, ctx);
           await c.execute({
             sql: `INSERT INTO scorers(season_id, player_id, team_id, goals, assists, penalties, played) VALUES (?,?,?,?,?,?,?)
                   ON CONFLICT(season_id, player_id) DO UPDATE SET team_id=excluded.team_id, goals=excluded.goals, assists=excluded.assists, penalties=excluded.penalties, played=excluded.played`,

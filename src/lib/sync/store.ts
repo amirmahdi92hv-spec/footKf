@@ -15,14 +15,35 @@ export async function overridesFor(c: Client, entity: Entity, id: number): Promi
  * Idempotent upsert keyed on (provider, entity, providerId). Overridden fields are never written by sync.
  * Returns the internal id. Re-running with the same input creates no duplicates.
  */
+/** Per-run cache so a sync does ~1 query per row instead of ~4 (matters for remote DBs like Turso). */
+export interface SyncCtx { map: Map<string, number>; ov: Map<string, Map<string, string | null>> }
+export async function loadCtx(c: Client, provider: string): Promise<SyncCtx> {
+  const [m, o] = await Promise.all([
+    c.execute({ sql: "SELECT entity, provider_id, internal_id FROM provider_mappings WHERE provider=?", args: [provider] }),
+    c.execute("SELECT entity, entity_id, field, value FROM manual_overrides"),
+  ]);
+  const map = new Map(m.rows.map((r) => [`${r.entity}:${r.provider_id}`, Number(r.internal_id)] as [string, number]));
+  const ov = new Map<string, Map<string, string | null>>();
+  for (const r of o.rows) {
+    const k = `${r.entity}:${r.entity_id}`;
+    if (!ov.has(k)) ov.set(k, new Map());
+    ov.get(k)!.set(String(r.field), r.value === null ? null : String(r.value));
+  }
+  return { map, ov };
+}
+
 export async function upsertMapped(
-  c: Client, provider: string, entity: Entity, providerId: string, fields: Record<string, InValue>,
+  c: Client, provider: string, entity: Entity, providerId: string, fields: Record<string, InValue>, ctx?: SyncCtx,
 ): Promise<number> {
   const table = ident(TABLE[entity]);
-  const m = await c.execute({ sql: "SELECT internal_id FROM provider_mappings WHERE provider=? AND entity=? AND provider_id=?", args: [provider, entity, providerId] });
-  if (m.rows[0]) {
-    const id = Number(m.rows[0].internal_id);
-    const ov = await overridesFor(c, entity, id);
+  let known: number | undefined = ctx?.map.get(`${entity}:${providerId}`);
+  if (known === undefined && !ctx) {
+    const m = await c.execute({ sql: "SELECT internal_id FROM provider_mappings WHERE provider=? AND entity=? AND provider_id=?", args: [provider, entity, providerId] });
+    if (m.rows[0]) known = Number(m.rows[0].internal_id);
+  }
+  if (known !== undefined) {
+    const id = known;
+    const ov = ctx ? (ctx.ov.get(`${entity}:${id}`) ?? new Map<string, string | null>()) : await overridesFor(c, entity, id);
     const keys = Object.keys(fields).filter((k) => !ov.has(k));
     if (keys.length) {
       await c.execute({ sql: `UPDATE ${table} SET ${keys.map((k) => `${ident(k)}=?`).join(",")} WHERE id=?`, args: [...keys.map((k) => fields[k]), id] });
@@ -36,6 +57,7 @@ export async function upsertMapped(
   });
   const id = Number(ins.lastInsertRowid);
   await c.execute({ sql: "INSERT INTO provider_mappings(provider, entity, provider_id, internal_id) VALUES (?,?,?,?)", args: [provider, entity, providerId, id] });
+  ctx?.map.set(`${entity}:${providerId}`, id);
   return id;
 }
 
