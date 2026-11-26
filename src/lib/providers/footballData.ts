@@ -61,6 +61,24 @@ export function footballDataAdapter(opts: { apiKey: string; dailyLimit?: number;
         matches: (body.matches ?? []).map(normalizeMatch),
       };
     },
+    async fetchMatchDetail(pid) {
+      const m = await get(`/matches/${pid}`, 30);
+      const events: unknown[] = [];
+      for (const g of m.goals ?? []) events.push({ kind: g.type === "OWN" ? "own_goal" : g.type === "PENALTY" ? "penalty" : "goal",
+        minute: n(g.minute), teamPid: g.team?.id != null ? String(g.team.id) : null, player: g.scorer?.name ?? null, related: g.assist?.name ?? null });
+      for (const b of m.bookings ?? []) events.push({ kind: b.card === "YELLOW" ? "yellow" : "red",
+        minute: n(b.minute), teamPid: b.team?.id != null ? String(b.team.id) : null, player: b.player?.name ?? null, related: null });
+      for (const s of m.substitutions ?? []) events.push({ kind: "sub",
+        minute: n(s.minute), teamPid: s.team?.id != null ? String(s.team.id) : null, player: s.playerIn?.name ?? null, related: s.playerOut?.name ?? null });
+      return { events };
+    },
+    async fetchTeam(pid) {
+      const t = await get(`/teams/${pid}`, 3600);
+      return {
+        founded: n(t.founded), venue: t.venue ?? null, coach: t.coach?.name ?? null,
+        squad: (t.squad ?? []).map((p: any) => ({ pid: String(p.id), name: p.name ?? "", position: p.position ?? null, nationality: p.nationality ?? null, birthDate: p.dateOfBirth ?? null })),
+      };
+    },
     async fetchStandings(code) {
       const body = await get(`/competitions/${code}/standings`, 600);
       const total = (body.standings ?? []).find((s: any) => s.type === "TOTAL");

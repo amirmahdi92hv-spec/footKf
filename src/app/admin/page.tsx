@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { requireAdmin } from "@/lib/adminGuard";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { num, ago } from "@/lib/format";
@@ -8,9 +10,7 @@ export const metadata = { title: "مدیریت", robots: { index: false } };
 
 async function runSync(fd: FormData) {
   "use server"; // middleware already guards /admin; actions are re-verified here too
-  const { cookies } = await import("next/headers");
-  const { COOKIE, verifySession } = await import("@/lib/auth");
-  if (!(await verifySession((await cookies()).get(COOKIE)?.value))) throw new Error("unauthorized");
+  await requireAdmin();
   const code = String(fd.get("code"));
   if (!FD_FREE_CODES.includes(code)) throw new Error("unknown competition");
   const key = process.env.FOOTBALL_DATA_API_KEY;
@@ -30,6 +30,7 @@ export default async function Admin() {
   const k = counts.rows[0];
   return (<>
     <h1>پیشخوان مدیریت</h1>
+    <p><Link className="btn" href="/admin/content">مدیریت اخبار، انتقال‌ها و اصلاح دستی</Link></p>
     {!process.env.FOOTBALL_DATA_API_KEY && <div className="stale">کلید FOOTBALL_DATA_API_KEY تنظیم نشده؛ همگام‌سازی غیرفعال است.</div>}
     <div className="grid2">
       <div className="panel kpi"><b>{num(Number(k.m))}</b><span>بازی</span></div>

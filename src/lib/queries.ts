@@ -4,10 +4,10 @@ import { dayRangeUtc } from "./format";
 export interface MatchRow {
   id: number; kickoff_utc: string; status: string; minute: number | null; matchday: number | null;
   home_score: number | null; away_score: number | null; competition_id: number; competition: string;
-  home: string; away: string; home_crest: string | null; away_crest: string | null;
+  home: string; away: string; home_id: number; away_id: number; home_crest: string | null; away_crest: string | null;
 }
 const MATCH_SQL = `SELECT m.id, m.kickoff_utc, m.status, m.minute, m.matchday, m.home_score, m.away_score, m.competition_id,
-  c.name AS competition, h.name AS home, a.name AS away, h.crest_url AS home_crest, a.crest_url AS away_crest
+  c.name AS competition, m.home_team_id AS home_id, m.away_team_id AS away_id, h.name AS home, a.name AS away, h.crest_url AS home_crest, a.crest_url AS away_crest
   FROM matches m JOIN competitions c ON c.id=m.competition_id
   JOIN teams h ON h.id=m.home_team_id JOIN teams a ON a.id=m.away_team_id`;
 
@@ -42,4 +42,33 @@ export async function freshness(scope: string) {
 export async function latestSync(): Promise<string | null> {
   const r = (await db().execute("SELECT MAX(last_ok_at) t FROM data_freshness")).rows[0];
   return r?.t ? String(r.t) : null;
+}
+
+export const matchById = async (id: number) => (await db().execute({ sql: `${MATCH_SQL} WHERE m.id=?`, args: [id] })).rows[0] as unknown as MatchRow | undefined;
+export const eventsFor = async (id: number) => (await db().execute({ sql: "SELECT * FROM match_events WHERE match_id=? ORDER BY COALESCE(minute,999), id", args: [id] })).rows;
+export const teamById = async (id: number) => (await db().execute({ sql: "SELECT * FROM teams WHERE id=?", args: [id] })).rows[0];
+export const squadOf = async (id: number) => (await db().execute({ sql: "SELECT id, name, position, nationality FROM players WHERE team_id=? ORDER BY position, name", args: [id] })).rows;
+export const playerById = async (id: number) => (await db().execute({ sql: "SELECT p.*, t.name AS team_name FROM players p LEFT JOIN teams t ON t.id=p.team_id WHERE p.id=?", args: [id] })).rows[0];
+export async function teamMatches(id: number, upcoming: boolean): Promise<MatchRow[]> {
+  const now = new Date().toISOString();
+  return (await db().execute({
+    sql: `${MATCH_SQL} WHERE (m.home_team_id=? OR m.away_team_id=?) AND m.kickoff_utc ${upcoming ? ">=" : "<"} ? ORDER BY m.kickoff_utc ${upcoming ? "ASC" : "DESC"} LIMIT 5`,
+    args: [id, id, now],
+  })).rows as unknown as MatchRow[];
+}
+export const teamStanding = async (id: number) => (await db().execute({
+  sql: `SELECT s.position, s.points, c.name AS competition FROM standings s JOIN seasons se ON se.id=s.season_id JOIN competitions c ON c.id=se.competition_id WHERE s.team_id=? AND se.is_current=1`, args: [id] })).rows[0];
+export const transfersList = async () => (await db().execute("SELECT * FROM transfers ORDER BY COALESCE(transfer_date, created_at) DESC LIMIT 100")).rows;
+export const newsList = async () => (await db().execute("SELECT * FROM news WHERE is_published=1 ORDER BY published_at DESC LIMIT 50")).rows;
+export const topScorers = async (competitionId: number) => (await db().execute({
+  sql: `SELECT sc.goals, sc.assists, p.id, p.name, t.name AS team FROM scorers sc JOIN players p ON p.id=sc.player_id LEFT JOIN teams t ON t.id=sc.team_id
+        JOIN seasons se ON se.id=sc.season_id WHERE se.competition_id=? AND se.is_current=1 ORDER BY sc.goals DESC LIMIT 15`, args: [competitionId] })).rows;
+export async function search(q: string) {
+  const like = `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
+  const [teams, players, comps] = await Promise.all([
+    db().execute({ sql: "SELECT id, name FROM teams WHERE name LIKE ? ESCAPE '\\' OR name_fa LIKE ? ESCAPE '\\' LIMIT 10", args: [like, like] }),
+    db().execute({ sql: "SELECT id, name FROM players WHERE name LIKE ? ESCAPE '\\' OR name_fa LIKE ? ESCAPE '\\' LIMIT 10", args: [like, like] }),
+    db().execute({ sql: "SELECT code, name FROM competitions WHERE name LIKE ? ESCAPE '\\' OR name_fa LIKE ? ESCAPE '\\' LIMIT 10", args: [like, like] }),
+  ]);
+  return { teams: teams.rows, players: players.rows, comps: comps.rows };
 }

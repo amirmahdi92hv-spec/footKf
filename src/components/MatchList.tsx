@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { MatchRow } from "@/lib/queries";
 import { num, timeFa, STATUS_FA } from "@/lib/format";
 
-const Crest = ({ src, name }: { src: string | null; name: string }) =>
+export const Crest = ({ src, name }: { src: string | null; name: string }) =>
   src ? <img className="crest" src={src} alt="" width={24} height={24} loading="lazy" /> : <span className="crest" aria-hidden>{name.slice(0, 1)}</span>;
 
 export function MatchList({ rows }: { rows: MatchRow[] }) {
@@ -17,14 +17,14 @@ export function MatchList({ rows }: { rows: MatchRow[] }) {
             const live = m.status === "live" || m.status === "paused";
             const hasScore = m.home_score !== null && m.away_score !== null;
             return (
-              <div className="mc" key={m.id}>
+              <Link className="mc" key={m.id} href={`/matches/${m.id}`}>
                 <div className="time">{live ? <span className="pill live">{STATUS_FA[m.status]}</span> : m.status === "scheduled" ? timeFa(m.kickoff_utc) : <span className="pill">{STATUS_FA[m.status]}</span>}</div>
                 <div className="t home"><Crest src={m.home_crest} name={m.home} /><span>{m.home}</span></div>
                 <div className="score" aria-label={hasScore ? `${m.home} ${num(m.home_score)} ${m.away} ${num(m.away_score)}` : "نتیجه‌ای ثبت نشده"}>
                   {hasScore ? `${num(m.home_score)} - ${num(m.away_score)}` : "–"}
                 </div>
                 <div className="t away"><Crest src={m.away_crest} name={m.away} /><span>{m.away}</span></div>
-              </div>
+              </Link>
             );
           })}
         </section>

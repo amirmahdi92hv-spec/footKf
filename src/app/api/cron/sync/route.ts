@@ -1,7 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { footballDataAdapter } from "@/lib/providers/footballData";
 import { syncCompetition } from "@/lib/sync/engine";
-import { liveMatches, matchesOn } from "@/lib/queries";
+import { liveMatches } from "@/lib/queries";
+import { syncMatchDetail } from "@/lib/sync/detail";
 import { todayYmd } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,8 @@ export async function POST(req: Request) {
   const from = todayYmd(), to = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
   const results: Record<string, unknown> = {};
   for (const code of codes) { if (!p.competitionCodes.includes(code)) continue; results[code] = await syncCompetition(p, code, { dateFrom: from, dateTo: to }); }
-  return Response.json(results);
+  // Events only for live matches (max 3) to protect the 10 req/min free limit
+  let events = 0;
+  for (const m of (await liveMatches()).slice(0, 3)) { try { events += await syncMatchDetail(p, m.id); } catch { /* keep stored events */ } }
+  return Response.json({ ...results, events });
 }

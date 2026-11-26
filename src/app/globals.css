@@ -44,3 +44,6 @@ input[type=password], input[type=text] { width: 100%; padding: var(--s3); backgr
 .grid2 { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .kpi { padding: var(--s4); } .kpi b { display: block; font-size: 22px; } .kpi span { color: var(--muted); font-size: 13px; }
 @media (max-width: 560px) { .mc { grid-template-columns: 48px 1fr auto 1fr; gap: var(--s2); padding: var(--s3); } .score { min-width: 48px; font-size: 16px; } h1 { font-size: 20px; } }
+.ev { display: grid; grid-template-columns: 48px 1fr; gap: var(--s3); padding: var(--s2) var(--s4); border-bottom: 1px solid var(--line); } .ev:last-child { border: 0; } .ev .m { color: var(--muted); text-align: center; }
+.row { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); } .row:last-child { border: 0; } .row small { color: var(--muted); display: block; }
+.fav { cursor: pointer; } form.stack { display: grid; gap: var(--s2); padding: var(--s4); } textarea { width: 100%; min-height: 90px; padding: var(--s3); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; }
