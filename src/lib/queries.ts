@@ -109,3 +109,5 @@ export const squadChanges = async () => (await db().execute(
    ORDER BY sc.detected_at DESC LIMIT 40`)).rows;
 export const playerSeasonStats = async (playerId: number) => (await db().execute({
   sql: `SELECT sc.goals, sc.assists, sc.penalties, sc.played, c.name AS competition, c.code FROM scorers sc JOIN seasons se ON se.id=sc.season_id JOIN competitions c ON c.id=se.competition_id WHERE sc.player_id=? AND se.is_current=1`, args: [playerId] })).rows;
+
+export const transferNews = async () => (await db().execute("SELECT * FROM news WHERE is_published=1 AND category='transfer' ORDER BY published_at DESC LIMIT 20")).rows;

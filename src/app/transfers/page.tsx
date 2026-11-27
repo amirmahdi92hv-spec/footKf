@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { transfersList, squadChanges } from "@/lib/queries";
+import { transfersList, squadChanges, transferNews } from "@/lib/queries";
 import { teamFa } from "@/lib/teamNames";
 import { ago } from "@/lib/format";
 import { Empty } from "@/components/MatchList";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "نقل‌وانتقالات" };
 
 export default async function Transfers() {
-  const [rows, changes] = await Promise.all([transfersList(), squadChanges()]);
+  const [rows, changes, headlines] = await Promise.all([transfersList(), squadChanges(), transferNews()]);
   return (<><h1>نقل‌وانتقالات</h1>
     <h2 className="sec" style={{ marginTop: 0 }}>انتقال‌های تأییدشده</h2>
     <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>فقط انتقال‌های تأییدشده با ذکر منبع؛ شایعه منتشر نمی‌شود.</p>
@@ -15,6 +15,11 @@ export default async function Transfers() {
       <div className="row" key={String(t.id)}><span><b>{String(t.player_name)}</b><small>{String(t.from_team ?? "؟")} ← {String(t.to_team ?? "؟")}</small></span>
         <span style={{ textAlign: "end" }}>{t.status === "official_announced" ? "اعلام رسمی باشگاه" : "تأییدشده"}<small>{t.source_url ? <a href={String(t.source_url)} rel="noopener noreferrer nofollow">{String(t.source_name)}</a> : String(t.source_name)}{t.transfer_date ? ` · ${t.transfer_date}` : ""}</small></span></div>))}</div>
       : <Empty title="هنوز انتقال تأییدشده‌ای ثبت نشده" hint="انتقال‌های تأییدشده را مدیر با ذکر منبع ثبت می‌کند." />}
+    <h2 className="sec">خبرهای انتقالات در رسانه‌ها (تأییدنشده)</h2>
+    <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>فقط عنوان و پیوند به منبع. این‌ها خبر یا شایعه‌اند و انتقال تأییدشده حساب نمی‌شوند.</p>
+    {headlines.length ? <div className="panel rise">{headlines.map((n) => (
+      <a className="row" key={String(n.id)} href={String(n.source_url)} target="_blank" rel="noopener noreferrer nofollow"><span>{String(n.title)}<small>{String(n.source_name)} · {ago(String(n.published_at))}</small></span><span className="pill">تأییدنشده</span></a>))}</div>
+      : <Empty title="هنوز خبری دریافت نشده" hint="با هر بار به‌روزرسانی اخبار، عنوان‌های مرتبط با انتقالات اینجا نمایش داده می‌شود." />}
     <h2 className="sec">تغییر فهرست تیم‌ها (تشخیص خودکار)</h2>
     <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>بازیکنانی که در داده‌ی رسمی منبع، در فهرست تیم دیگری دیده شده‌اند. این‌ها انتقال تأییدشده نیستند و ممکن است قرضی یا جابه‌جایی داخلی باشند.</p>
     {changes.length ? <div className="panel rise">{changes.map((c) => (

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { freshDb } from "./helpers";
-import { parseRss, ingestNews } from "@/lib/news";
+import { parseRss, ingestNews, isTransferHeadline } from "@/lib/news";
 
 const XML = `<?xml version="1.0"?><rss><channel>
 <item><title><![CDATA[Arsenal &amp; Chelsea draw]]></title><link>https://example.com/a</link><pubDate>Wed, 25 Nov 2026 10:00:00 GMT</pubDate><description><![CDATA[<p>full article text should be ignored</p>]]></description></item>
@@ -29,5 +29,14 @@ describe("news", () => {
   it("a failing feed does not break the others", async () => {
     const f = (async (u: string) => u.includes("bad") ? new Response("", { status: 500 }) : new Response(XML)) as unknown as typeof fetch;
     expect((await ingestNews([{ name: "A", url: "https://bad/rss" }, { name: "B", url: "https://good/rss" }], f)).added).toBe(2);
+  });
+  it("tags transfer-like headlines only", async () => {
+    expect(isTransferHeadline("Arsenal sign striker in £50m deal")).toBe(true);
+    expect(isTransferHeadline("Chelsea beat Spurs 2-0")).toBe(false);
+    const xml = `<rss><channel><item><title>Club agrees loan move for winger</title><link>https://e.com/1</link><pubDate>Wed, 25 Nov 2026 10:00:00 GMT</pubDate></item><item><title>Late winner secures derby win</title><link>https://e.com/2</link><pubDate>Wed, 25 Nov 2026 10:00:00 GMT</pubDate></item></channel></rss>`;
+    await ingestNews([{ name: "T", url: "https://x/r" }], (async () => new Response(xml)) as unknown as typeof fetch);
+    const r = (await c.execute("SELECT title, category FROM news ORDER BY title")).rows;
+    expect(r.find((x) => String(x.title).includes("loan"))?.category).toBe("transfer");
+    expect(r.find((x) => String(x.title).includes("derby"))?.category).toBeNull();
   });
 });

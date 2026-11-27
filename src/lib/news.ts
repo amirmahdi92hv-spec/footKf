@@ -13,6 +13,9 @@ export function feedsFromEnv(): Feed[] {
   return DEFAULT_FEEDS;
 }
 
+/** Headlines that look like transfer news. Shown separately and always labeled unconfirmed. */
+export const isTransferHeadline = (t: string) => /\b(transfer|signs?|signed|signing|loan|joins?|joined|bid|swap deal|release clause|medical)\b/i.test(t);
+
 const unCdata = (s: string) => s.replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1");
 const decode = (s: string) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'");
 const tag = (block: string, name: string) => { const m = block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "i")); return m ? decode(unCdata(m[1])).replace(/<[^>]+>/g, "").trim() : ""; };
@@ -40,7 +43,7 @@ export async function ingestNews(feeds = feedsFromEnv(), f: typeof fetch = fetch
       if (!res.ok) continue;
       const xml = (await res.text()).slice(0, 1_000_000);
       for (const it of parseRss(xml)) {
-        const r = await c.execute({ sql: "INSERT OR IGNORE INTO news(title, summary, source_name, source_url, published_at) VALUES (?,?,?,?,?)", args: [it.title, null, feed.name, it.link, it.publishedAt] });
+        const r = await c.execute({ sql: "INSERT OR IGNORE INTO news(title, summary, source_name, source_url, published_at, category) VALUES (?,?,?,?,?,?)", args: [it.title, null, feed.name, it.link, it.publishedAt, isTransferHeadline(it.title) ? "transfer" : null] });
         added += r.rowsAffected;
       }
       okFeeds++;
