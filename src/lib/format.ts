@@ -25,3 +25,7 @@ export const shiftYmd = (ymd: string, d: number) => new Date(new Date(`${ymd}T12
 /** Persian names for well-known competitions (by provider code); falls back to the provider name. */
 const COMP_FA: Record<string, string> = { PL: "لیگ برتر انگلیس", PD: "لالیگا", BL1: "بوندسلیگا", SA: "سری آ", FL1: "لیگ ۱ فرانسه", CL: "لیگ قهرمانان اروپا", DED: "اردیویزی هلند", PPL: "لیگ پرتغال", ELC: "چمپیونشیپ انگلیس", BSA: "سری آ برزیل", WC: "جام جهانی", EC: "یورو" };
 export const compName = (code: string | null | undefined, fallback: string) => (code && COMP_FA[code]) || fallback;
+
+export const weekdayShort = (ymd: string) => new Intl.DateTimeFormat("fa-IR-u-ca-persian", { weekday: "short", timeZone: "UTC" }).format(new Date(`${ymd}T12:00:00Z`));
+export const dayNum = (ymd: string) => new Intl.DateTimeFormat("fa-IR-u-ca-persian", { day: "numeric", timeZone: "UTC" }).format(new Date(`${ymd}T12:00:00Z`));
+export const monthName = (ymd: string) => new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "long", timeZone: "UTC" }).format(new Date(`${ymd}T12:00:00Z`));

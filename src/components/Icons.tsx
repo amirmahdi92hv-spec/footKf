@@ -1,0 +1,12 @@
+const s = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24" } as const;
+export const IHome = () => <svg {...s}><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10" /></svg>;
+export const IBall = () => <svg {...s}><circle cx="12" cy="12" r="9" /><path d="M12 7l4 3-1.5 5h-5L8 10zM12 3v4M20.5 9.5L16 10M3.5 9.5L8 10M17.5 18l-3-3M6.5 18l3-3" /></svg>;
+export const ITrophy = () => <svg {...s}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0zM17 5h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3" /></svg>;
+export const ISwap = () => <svg {...s}><path d="M7 7h13l-3-3M17 17H4l3 3" /></svg>;
+export const INews = () => <svg {...s}><path d="M4 5h13v14H6a2 2 0 01-2-2zM17 9h3v8a2 2 0 01-2 2M8 9h5M8 13h5" /></svg>;
+export const ISearch = () => <svg {...s}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>;
+export const IEmpty = () => <svg {...s}><circle cx="12" cy="12" r="9" /><path d="M8 15s1.5-2 4-2 4 2 4 2M9 9.5h.01M15 9.5h.01" /></svg>;
+export const IGoal = () => <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#22d38a22" stroke="#22d38a" strokeWidth="1.5" /><path d="M12 7l3.2 2.3-1.2 3.8h-4l-1.2-3.8z" fill="#22d38a" /></svg>;
+export const ICard = ({ red }: { red?: boolean }) => <svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2" fill={red ? "#ff4d5a" : "#f5c518"} /></svg>;
+export const ISub = () => <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"><path d="M5 8h13l-3-3" stroke="#22d38a" /><path d="M19 16H6l3 3" stroke="#ff4d5a" /></svg>;
+export const LogoMark = () => <svg viewBox="0 0 32 32"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2ff0a0" /><stop offset="1" stopColor="#0ea66a" /></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg)" /><path d="M16 6l5.5 4v6.2L16 26l-5.5-9.8V10z" fill="#032617" opacity=".9" /><circle cx="16" cy="14" r="3" fill="#2ff0a0" /></svg>;

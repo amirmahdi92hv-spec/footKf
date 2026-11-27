@@ -1,20 +1,26 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
+import { TopNav, BottomNav, SearchBox } from "@/components/Nav";
+import { LogoMark } from "@/components/Icons";
 
-export const metadata: Metadata = { title: { default: "فوت‌کی‌اف | FootKf", template: "%s | فوت‌کی‌اف" }, description: "نتایج زنده، جدول و برنامه بازی‌های فوتبال به زبان فارسی" };
-export const viewport: Viewport = { themeColor: "#0b1220" };
+export const metadata: Metadata = {
+  title: { default: "فوت‌کی‌اف | نتایج زنده و جدول فوتبال", template: "%s | فوت‌کی‌اف" },
+  description: "نتایج زنده، برنامهٔ بازی‌ها، جدول لیگ‌ها و آمار فوتبال به زبان فارسی",
+  manifest: "/manifest.webmanifest",
+};
+export const viewport: Viewport = { themeColor: "#060b16", width: "device-width", initialScale: 1 };
 
-const links = [["/", "خانه"], ["/matches", "بازی‌ها"], ["/competitions", "لیگ‌ها"], ["/transfers", "نقل‌وانتقالات"], ["/news", "اخبار"], ["/search", "جستجو"]] as const;
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fa" dir="rtl">
       <body>
         <header className="top"><div className="wrap">
-          <Link href="/" className="logo"><i />FootKf</Link>
-          <nav className="main" aria-label="ناوبری اصلی">{links.map(([h, l]) => <Link key={h} href={h}>{l}</Link>)}</nav>
+          <Link href="/" className="logo" aria-label="فوت‌کی‌اف"><LogoMark />فوت‌<small>کی‌اف</small></Link>
+          <TopNav /><SearchBox />
         </div></header>
         <main><div className="wrap">{children}</div></main>
+        <BottomNav />
       </body>
     </html>
   );

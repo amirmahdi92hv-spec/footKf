@@ -4,10 +4,10 @@ import { dayRangeUtc } from "./format";
 export interface MatchRow {
   id: number; kickoff_utc: string; status: string; minute: number | null; matchday: number | null;
   home_score: number | null; away_score: number | null; competition_id: number; competition: string;
-  home: string; away: string; home_id: number; away_id: number; home_crest: string | null; away_crest: string | null;
+  home: string; away: string; home_id: number; away_id: number; home_fa: string | null; away_fa: string | null; comp_code: string | null; venue: string | null; home_crest: string | null; away_crest: string | null;
 }
 const MATCH_SQL = `SELECT m.id, m.kickoff_utc, m.status, m.minute, m.matchday, m.home_score, m.away_score, m.competition_id,
-  c.name AS competition, m.home_team_id AS home_id, m.away_team_id AS away_id, h.name AS home, a.name AS away, h.crest_url AS home_crest, a.crest_url AS away_crest
+  c.name AS competition, c.code AS comp_code, h.venue AS venue, h.name_fa AS home_fa, a.name_fa AS away_fa, m.home_team_id AS home_id, m.away_team_id AS away_id, h.name AS home, a.name AS away, h.crest_url AS home_crest, a.crest_url AS away_crest
   FROM matches m JOIN competitions c ON c.id=m.competition_id
   JOIN teams h ON h.id=m.home_team_id JOIN teams a ON a.id=m.away_team_id`;
 
@@ -71,4 +71,34 @@ export async function search(q: string) {
     db().execute({ sql: "SELECT code, name FROM competitions WHERE name LIKE ? ESCAPE '\\' OR name_fa LIKE ? ESCAPE '\\' LIMIT 10", args: [like, like] }),
   ]);
   return { teams: teams.rows, players: players.rows, comps: comps.rows };
+}
+
+export async function matchesRange(fromYmd: string, toYmd: string): Promise<MatchRow[]> {
+  const [from] = dayRangeUtc(fromYmd); const [, to] = dayRangeUtc(toYmd);
+  return (await db().execute({ sql: `${MATCH_SQL} WHERE m.kickoff_utc >= ? AND m.kickoff_utc < ? ORDER BY m.kickoff_utc, m.id`, args: [from, to] })).rows as unknown as MatchRow[];
+}
+export async function nextMatch(): Promise<MatchRow | undefined> {
+  const r = await db().execute({ sql: `${MATCH_SQL} WHERE m.status IN ('scheduled') AND m.kickoff_utc >= ? ORDER BY m.kickoff_utc LIMIT 1`, args: [new Date().toISOString()] });
+  return r.rows[0] as unknown as MatchRow | undefined;
+}
+export async function competitionsWithMatchesOn(ymd: string) {
+  const [from, to] = dayRangeUtc(ymd);
+  return (await db().execute({ sql: "SELECT DISTINCT c.id, c.code, c.name FROM matches m JOIN competitions c ON c.id=m.competition_id WHERE m.kickoff_utc >= ? AND m.kickoff_utc < ? ORDER BY c.name", args: [from, to] })).rows;
+}
+/** Last results (W/D/L) for a team, newest first, derived only from finished matches we hold. */
+export async function formOf(teamId: number, limit = 5): Promise<("W" | "D" | "L")[]> {
+  const r = await db().execute({ sql: "SELECT home_team_id h, home_score hs, away_score a FROM matches WHERE (home_team_id=? OR away_team_id=?) AND status='finished' AND home_score IS NOT NULL AND away_score IS NOT NULL ORDER BY kickoff_utc DESC LIMIT ?", args: [teamId, teamId, limit] });
+  return r.rows.map((x) => { const mine = Number(x.h) === teamId ? Number(x.hs) : Number(x.a), theirs = Number(x.h) === teamId ? Number(x.a) : Number(x.hs); return mine > theirs ? "W" : mine < theirs ? "L" : "D"; });
+}
+export async function headToHead(a: number, b: number): Promise<MatchRow[]> {
+  return (await db().execute({ sql: `${MATCH_SQL} WHERE m.status='finished' AND ((m.home_team_id=? AND m.away_team_id=?) OR (m.home_team_id=? AND m.away_team_id=?)) ORDER BY m.kickoff_utc DESC LIMIT 5`, args: [a, b, b, a] })).rows as unknown as MatchRow[];
+}
+export async function featuredCompetition() {
+  return (await db().execute("SELECT c.id, c.code, c.name FROM competitions c JOIN seasons se ON se.competition_id=c.id AND se.is_current=1 JOIN standings s ON s.season_id=se.id GROUP BY c.id ORDER BY COUNT(*) DESC LIMIT 1")).rows[0];
+}
+export async function standingsWithTeams(competitionId: number) {
+  return (await db().execute({ sql: `SELECT s.*, t.name, t.name_fa, t.crest_url FROM standings s JOIN teams t ON t.id=s.team_id JOIN seasons se ON se.id=s.season_id WHERE se.competition_id=? AND se.is_current=1 ORDER BY s.position`, args: [competitionId] })).rows;
+}
+export async function competitionMatches(competitionId: number, limit = 60): Promise<MatchRow[]> {
+  return (await db().execute({ sql: `${MATCH_SQL} WHERE m.competition_id=? ORDER BY m.kickoff_utc DESC LIMIT ?`, args: [competitionId, limit] })).rows as unknown as MatchRow[];
 }
