@@ -102,3 +102,10 @@ export async function standingsWithTeams(competitionId: number) {
 export async function competitionMatches(competitionId: number, limit = 60): Promise<MatchRow[]> {
   return (await db().execute({ sql: `${MATCH_SQL} WHERE m.competition_id=? ORDER BY m.kickoff_utc DESC LIMIT ?`, args: [competitionId, limit] })).rows as unknown as MatchRow[];
 }
+
+export const squadChanges = async () => (await db().execute(
+  `SELECT sc.id, sc.detected_at, p.id AS player_id, p.name AS player, f.name AS from_name, f.name_fa AS from_fa, t.name AS to_name, t.name_fa AS to_fa, f.id AS from_id, t.id AS to_id
+   FROM squad_changes sc JOIN players p ON p.id=sc.player_id JOIN teams f ON f.id=sc.from_team_id JOIN teams t ON t.id=sc.to_team_id
+   ORDER BY sc.detected_at DESC LIMIT 40`)).rows;
+export const playerSeasonStats = async (playerId: number) => (await db().execute({
+  sql: `SELECT sc.goals, sc.assists, sc.penalties, sc.played, c.name AS competition, c.code FROM scorers sc JOIN seasons se ON se.id=sc.season_id JOIN competitions c ON c.id=se.competition_id WHERE sc.player_id=? AND se.is_current=1`, args: [playerId] })).rows;

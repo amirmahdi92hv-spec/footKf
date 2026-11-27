@@ -39,6 +39,10 @@ export async function syncTeam(p: ProviderAdapter, teamId: number): Promise<numb
   for (const raw of t.squad) {
     const pl = NormPlayer.safeParse(raw);
     if (!pl.success) continue;
+    const prev = (await db().execute({ sql: "SELECT p.id, p.team_id FROM provider_mappings m JOIN players p ON p.id=m.internal_id WHERE m.provider=? AND m.entity='player' AND m.provider_id=?", args: [p.name, pl.data.pid] })).rows[0];
+    if (prev && prev.team_id != null && Number(prev.team_id) !== teamId) {
+      await db().execute({ sql: "INSERT OR IGNORE INTO squad_changes(player_id, from_team_id, to_team_id) VALUES (?,?,?)", args: [Number(prev.id), Number(prev.team_id), teamId] });
+    }
     await upsertMapped(db(), p.name, "player", pl.data.pid, { name: pl.data.name, position: pl.data.position, nationality: pl.data.nationality, birth_date: pl.data.birthDate, team_id: teamId, updated_at: new Date().toISOString() });
     n++;
   }

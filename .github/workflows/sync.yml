@@ -9,4 +9,4 @@ jobs:
       - run: |
           curl --fail --max-time 60 -X POST \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.SITE_URL }}/api/cron/sync?codes=PL,PD"
+            "${{ secrets.SITE_URL }}/api/cron/sync?codes=auto"

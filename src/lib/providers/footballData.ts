@@ -42,7 +42,7 @@ export function normalizeStanding(r: any) {
 export function footballDataAdapter(opts: { apiKey: string; dailyLimit?: number; fetchImpl?: typeof fetch; sleep?: (ms: number) => Promise<void> }): ProviderAdapter {
   const get = (path: string, ttl: number) => cachedGetJson({
     provider: "football-data", url: `${BASE}${path}`, headers: { "X-Auth-Token": opts.apiKey },
-    ttlSeconds: ttl, dailyLimit: opts.dailyLimit ?? 2000, fetchImpl: opts.fetchImpl, sleep: opts.sleep,
+    ttlSeconds: ttl, dailyLimit: opts.dailyLimit ?? 2000, minIntervalMs: opts.fetchImpl ? 0 : 6200, fetchImpl: opts.fetchImpl, sleep: opts.sleep,
   }) as Promise<any>;
   return {
     name: "football-data",
@@ -88,8 +88,9 @@ export function footballDataAdapter(opts: { apiKey: string; dailyLimit?: number;
     },
     async fetchStandings(code) {
       const body = await get(`/competitions/${code}/standings`, 600);
-      const total = (body.standings ?? []).find((s: any) => s.type === "TOTAL");
-      return (total?.table ?? []).map(normalizeStanding);
+      const totals = (body.standings ?? []).filter((s: any) => s.type === "TOTAL");
+      if (totals.length !== 1) return []; // group stages have several tables; showing only one would mislead
+      return (totals[0].table ?? []).map(normalizeStanding);
     },
   };
 }
