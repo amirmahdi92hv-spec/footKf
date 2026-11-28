@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { search } from "@/lib/queries";
 export const dynamic = "force-dynamic";
-export const metadata = { title: "جستجو" };
+export const metadata = { title: "جستجو", robots: { index: false, follow: true } };
 
 export default async function Search({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const q = ((await searchParams).q ?? "").trim().slice(0, 60);

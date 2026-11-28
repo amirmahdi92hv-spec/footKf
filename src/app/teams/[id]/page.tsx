@@ -7,6 +7,14 @@ import { MatchList, Empty, Crest } from "@/components/MatchList";
 import { FavButton } from "@/components/Fav";
 import { FormPills } from "@/components/FormPills";
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const id = Number((await params).id);
+  const t = Number.isInteger(id) ? await teamById(id) : undefined;
+  if (!t) return { title: "تیم پیدا نشد", robots: { index: false } };
+  const n = teamFa(String(t.name), t.name_fa as string | null);
+  return { title: `${n} | بازی‌ها، نتایج و بازیکنان`, description: `برنامه و نتایج بازی‌ها، جایگاه در جدول، فرم اخیر و فهرست بازیکنان ${n}.`, alternates: { canonical: `/teams/${id}` } };
+}
 const POS: [string, string][] = [["Goalkeeper", "دروازه‌بان‌ها"], ["Defence", "مدافعان"], ["Midfield", "هافبک‌ها"], ["Offence", "مهاجمان"]];
 
 export default async function Team({ params }: { params: Promise<{ id: string }> }) {

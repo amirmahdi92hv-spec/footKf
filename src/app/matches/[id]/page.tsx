@@ -10,6 +10,14 @@ import { Countdown } from "@/components/Countdown";
 import { IGoal, ICard, ISub } from "@/components/Icons";
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const id = Number((await params).id);
+  const m = Number.isInteger(id) ? await matchById(id) : undefined;
+  if (!m) return { title: "بازی پیدا نشد", robots: { index: false } };
+  const t = `${hn(m)} - ${an(m)}`;
+  return { title: `${t} | نتیجه و رویدادها`, description: `نتیجه، رویدادها و جزئیات بازی ${t} در ${compName(m.comp_code, m.competition)}.`, alternates: { canonical: `/matches/${id}` } };
+}
+
 const LABEL: Record<string, string> = { goal: "گل", own_goal: "گل به خودی", penalty: "گل پنالتی", yellow: "کارت زرد", red: "کارت قرمز", sub: "تعویض" };
 const icon = (k: string) => k === "yellow" ? <ICard /> : k === "red" ? <ICard red /> : k === "sub" ? <ISub /> : <IGoal />;
 

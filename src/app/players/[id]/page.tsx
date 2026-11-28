@@ -6,6 +6,16 @@ import { teamFa } from "@/lib/teamNames";
 import { dateFa, num, compName } from "@/lib/format";
 import { Crest } from "@/components/MatchList";
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const id = Number((await params).id);
+  const p = Number.isInteger(id) ? await playerById(id) : undefined;
+  if (!p) return { title: "بازیکن پیدا نشد", robots: { index: false } };
+  const stats = await playerSeasonStats(id);
+  const n = String(p.name_fa ?? p.name);
+  // Thin pages (no season stats) stay out of Google's index until they have real content.
+  return { title: `${n} | مشخصات و آمار`, description: `مشخصات، تیم فعلی و آمار فصل ${n}.`, alternates: { canonical: `/players/${id}` }, robots: stats.length ? undefined : { index: false, follow: true } };
+}
 const POS: Record<string, string> = { Goalkeeper: "دروازه‌بان", Defence: "مدافع", Midfield: "هافبک", Offence: "مهاجم" };
 
 export default async function Player({ params }: { params: Promise<{ id: string }> }) {

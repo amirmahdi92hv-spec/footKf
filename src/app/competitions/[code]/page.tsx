@@ -9,6 +9,13 @@ import { Standings } from "@/components/Standings";
 import { Tabs } from "@/components/Tabs";
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
+  const c = await competitionByCode((await params).code.toUpperCase());
+  if (!c) return { title: "لیگ پیدا نشد", robots: { index: false } };
+  const t = compName(String(c.code), String(c.name));
+  return { title: `${t} | جدول، نتایج و گلزنان`, description: `جدول رده‌بندی، برنامه و نتایج بازی‌ها و گلزنان برتر ${t} به‌روز و به زبان فارسی.`, alternates: { canonical: `/competitions/${c.code}` } };
+}
+
 export default async function Competition({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { code } = await params; const { tab: t } = await searchParams;
   const tab = ["table", "matches", "scorers"].includes(t ?? "") ? t! : "table";
